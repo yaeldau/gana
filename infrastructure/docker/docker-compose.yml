@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: gana-postgres
+    environment:
+      POSTGRES_USER: gana
+      POSTGRES_PASSWORD: gana_dev_password
+      POSTGRES_DB: gana_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gana']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: ../infrastructure/docker/Dockerfile.backend
+    container_name: gana-backend
+    environment:
+      DATABASE_URL: postgresql://gana:gana_dev_password@postgres:5432/gana_dev
+      JWT_SECRET: dev-secret-change-in-production
+      JWT_EXPIRES_IN: 7d
+      PORT: 4000
+      NODE_ENV: development
+      ALLOWED_ORIGINS: http://localhost:3000
+      LOG_LEVEL: debug
+    ports:
+      - '4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../../backend:/app
+      - /app/node_modules
+    command: pnpm dev
+
+  # Frontend
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: ../infrastructure/docker/Dockerfile.frontend
+    container_name: gana-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_ENV: development
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+    volumes:
+      - ../../frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: pnpm dev
+
+volumes:
+  postgres_data:
+    driver: local

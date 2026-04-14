@@ -1,0 +1,199 @@
+// Gana Database Schema
+// PostgreSQL database for family tree / genealogy application
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// User Management
+// ============================================================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // bcrypt hashed
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdPersons Person[]       @relation("CreatedBy")
+  auditLogs      AuditLog[]
+  mergeHistory   MergeHistory[]
+
+  @@map("users")
+}
+
+// ============================================================================
+// Person (Core Entity)
+// ============================================================================
+
+model Person {
+  id         String    @id @default(uuid())
+  givenName  String    // First name(s)
+  familyName String    // Last name / surname
+  middleName String?   // Optional middle name
+  birthDate  DateTime? @db.Date
+  deathDate  DateTime? @db.Date
+  gender     Gender?
+  bio        String?   @db.Text
+  isLiving   Boolean   @default(true)
+
+  // Metadata
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Merge tracking (soft delete)
+  isMerged   Boolean   @default(false)
+  mergedInto String?   // Points to canonical person UUID if merged
+  mergedAt   DateTime?
+
+  // Relations
+  creator              User               @relation("CreatedBy", fields: [createdBy], references: [id])
+  relationshipsFrom    Relationship[]     @relation("PersonFrom")
+  relationshipsTo      Relationship[]     @relation("PersonTo")
+  mergeProposalsAsA    MergeProposal[]    @relation("PersonA")
+  mergeProposalsAsB    MergeProposal[]    @relation("PersonB")
+  mergedResults        MergeHistory[]     @relation("MergedResult")
+
+  // Indexes for performance
+  @@index([familyName, givenName])
+  @@index([birthDate])
+  @@index([isMerged])
+  @@index([mergedInto])
+  @@index([createdBy])
+  @@map("persons")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
+// ============================================================================
+// Relationships
+// ============================================================================
+
+model Relationship {
+  id           String           @id @default(uuid())
+  personFromId String
+  personToId   String
+  type         RelationshipType
+  startDate    DateTime?        @db.Date // e.g., marriage date
+  endDate      DateTime?        @db.Date // e.g., divorce date, death
+  notes        String?          @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  personFrom Person @relation("PersonFrom", fields: [personFromId], references: [id], onDelete: Cascade)
+  personTo   Person @relation("PersonTo", fields: [personToId], references: [id], onDelete: Cascade)
+
+  // Constraints
+  @@unique([personFromId, personToId, type])
+  @@index([personFromId])
+  @@index([personToId])
+  @@index([type])
+  @@map("relationships")
+}
+
+enum RelationshipType {
+  PARENT // personFrom is parent of personTo
+  CHILD // personFrom is child of personTo
+  PARTNER // personFrom is partner of personTo (spouse, marriage)
+  SIBLING // personFrom is sibling of personTo
+}
+
+// ============================================================================
+// Merge System
+// ============================================================================
+
+model MergeProposal {
+  id         String               @id @default(uuid())
+  personAId  String
+  personBId  String
+  confidence Float // 0.0 to 1.0 score
+  status     MergeProposalStatus  @default(PENDING)
+  reason     String?              @db.Text // Why these were matched
+
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+  reviewedBy String? // User ID who accepted/rejected
+
+  // Relations
+  personA Person @relation("PersonA", fields: [personAId], references: [id], onDelete: Cascade)
+  personB Person @relation("PersonB", fields: [personBId], references: [id], onDelete: Cascade)
+
+  @@unique([personAId, personBId])
+  @@index([status])
+  @@index([confidence])
+  @@map("merge_proposals")
+}
+
+enum MergeProposalStatus {
+  PENDING // Awaiting review
+  ACCEPTED // User confirmed - ready to merge
+  REJECTED // User confirmed - not a match
+  MERGED // Merge completed
+  SUPERSEDED // One person was merged elsewhere
+}
+
+model MergeHistory {
+  id              String   @id @default(uuid())
+  mergedPersonId  String // The new canonical person (result)
+  sourcePersonAId String // Original person A UUID
+  sourcePersonBId String // Original person B UUID
+
+  resolutions Json // Field-by-field conflict decisions
+
+  mergedBy String // User ID who performed merge
+  mergedAt DateTime @default(now())
+
+  // Relations
+  mergedPerson Person @relation("MergedResult", fields: [mergedPersonId], references: [id])
+  merger       User   @relation(fields: [mergedBy], references: [id])
+
+  @@index([mergedPersonId])
+  @@index([sourcePersonAId])
+  @@index([sourcePersonBId])
+  @@map("merge_history")
+}
+
+// ============================================================================
+// Audit Log
+// ============================================================================
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String // Who made the change
+  action     AuditAction
+  entityType String // "Person", "Relationship", etc.
+  entityId   String // UUID of the changed entity
+  changes    Json // Before/after values
+  timestamp  DateTime    @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  MERGE
+}
