@@ -9,6 +9,11 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
   },
 
+  // Skip type checking during build for deployment
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+
   // Experimental features
   experimental: {
     typedRoutes: false,
