@@ -104,7 +104,7 @@ export default function DashboardPage() {
             {persons.map((person) => (
               <Link
                 key={person.id}
-                href={`/dashboard/persons/${person.id}`}
+                href={`/dashboard/persons/${person.id}` as any}
                 className="group"
               >
                 <div className="rounded-lg border bg-card p-6 transition-all hover:border-primary hover:shadow-md">
