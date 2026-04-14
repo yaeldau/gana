@@ -18,7 +18,7 @@ import { getFamilyCluster, getPersonById } from '@/lib/mock-data';
 import { buildGraphFromCluster } from '@/lib/graph-utils';
 
 const nodeTypes: NodeTypes = {
-  personNode: PersonNode,
+  personNode: PersonNode as any,
 };
 
 export function GraphCanvas() {
