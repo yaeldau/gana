@@ -1,0 +1,1 @@
+self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/Users/ydauber/Build/claude/gana/frontend/src/app/layout":["static/media/72b894ddc38a7cc1-s.p.woff2","static/media/e400baae650c21fc-s.p.woff2","static/media/c7b4fd33734710f7-s.p.woff2","static/media/e4af272ccee01ff0-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';
