@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: gana-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm install && npx prisma generate && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_Zmyw0U8FYfgX@ep-divine-night-aj37gm05-pooler.c-3.us-east-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
+      - key: JWT_SECRET
+        value: gana-production-secret-key-2026-secure
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: ALLOWED_ORIGINS
+        value: https://spontaneous-sorbet-3930f1.netlify.app
